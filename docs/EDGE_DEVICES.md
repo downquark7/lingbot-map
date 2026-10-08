@@ -14,6 +14,8 @@ on a PC GPU.** `live_demo.py` on this branch implements that setup.
   72 000 cached tokens × 24 layers) adds several TFLOP more once the window is full.
 - The KV cache for that window is ≈ 100 MB per cached frame in bf16, i.e. several GB.
 - The README's ~20 FPS is on a datacenter-class NVIDIA GPU with FlashInfer.
+- Measured on this branch: 4 desktop-class x86 CPU cores (fp32) take ~8 s per streamed
+  frame at 518×294 with an almost empty KV cache — and it only gets slower as the cache fills.
 
 ## Running it on a phone
 
