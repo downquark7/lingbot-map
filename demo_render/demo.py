@@ -274,8 +274,8 @@ def main():
                         help="Overlap between windows. Default: num_scale_frames (overlap = scale frames)")
 
     # Visualization
-    parser.add_argument("--host", type=str, default="127.0.0.1",
-                        help="Viewer bind address (0.0.0.0 to allow other devices on the network)")
+    parser.add_argument("--host", type=str, default="0.0.0.0",
+                        help="Viewer bind address (127.0.0.1 to restrict to this machine)")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--conf_threshold", type=float, default=1.0)
     parser.add_argument("--downsample_factor", type=int, default=10)

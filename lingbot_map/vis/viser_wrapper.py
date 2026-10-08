@@ -24,7 +24,7 @@ from lingbot_map.vis.sky_segmentation import apply_sky_segmentation
 def viser_wrapper(
     pred_dict: dict,
     port: int = 8080,
-    host: str = "127.0.0.1",
+    host: str = "0.0.0.0",
     init_conf_threshold: float = 50.0,
     use_point_map: bool = False,
     background_mode: bool = False,

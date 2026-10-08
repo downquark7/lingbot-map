@@ -12,8 +12,8 @@ Usage:
     # ESP32-CAM / any MJPEG stream on the local network
     python live_demo.py --model_path lingbot-map.pt --source http://192.168.1.50:81/stream
 
-    # Local webcam, viewer reachable from a phone on the same Wi-Fi
-    python live_demo.py --model_path lingbot-map.pt --source 0 --host 0.0.0.0
+    # Local webcam, viewer restricted to this machine
+    python live_demo.py --model_path lingbot-map.pt --source 0 --host 127.0.0.1
 """
 
 import argparse
@@ -143,8 +143,9 @@ def main():
     parser.add_argument("--use_sdpa", action="store_true", default=False)
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cuda", "cpu"])
     parser.add_argument("--dtype", type=str, default="auto", choices=["auto", "bf16", "fp16", "fp32"])
-    parser.add_argument("--host", type=str, default="127.0.0.1",
-                        help="Viewer bind address (0.0.0.0 to watch from a phone on the same network)")
+    parser.add_argument("--host", type=str, default="0.0.0.0",
+                        help="Viewer bind address (default 0.0.0.0: reachable from other devices on the "
+                             "network; 127.0.0.1 for this machine only)")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--conf_threshold", type=float, default=1.5)
     parser.add_argument("--downsample", type=int, default=4, help="Keep every N-th pixel (per axis) in the viewer")
@@ -186,7 +187,7 @@ def main():
     import viser.transforms as tf
     server = viser.ViserServer(host=args.host, port=args.port)
     status = server.gui.add_text("Status", "waiting for camera...")
-    print(f"Viewer: http://{'localhost' if args.host == '127.0.0.1' else args.host}:{args.port}")
+    print(f"Viewer: http://{'localhost' if args.host in ('127.0.0.1', '0.0.0.0') else args.host}:{args.port}")
 
     source = int(args.source) if args.source.isdigit() else args.source
     reader = LatestFrameReader(source)

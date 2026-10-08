@@ -24,7 +24,7 @@ on a PC GPU.** `live_demo.py` on this branch implements that setup.
 | On-device, real time | **Not feasible.** A flagship phone GPU/NPU delivers a few dense fp16 TFLOPS in practice — seconds per frame at best before the KV cache fills, and the weights + cache (≥ 5 GB) exceed what Android/iOS let one app allocate. |
 | On-device, offline (record now, reconstruct slowly) | **Technically possible, not practical.** Would need exporting the streaming model (custom 3D RoPE, dynamic KV cache, keyframe logic) to ExecuTorch / ONNX Runtime Mobile / Core ML / QNN, plus int8/int4 quantization and a much smaller sliding window, with unknown accuracy loss. Weeks of engineering for minutes-per-frame results. PyTorch CPU in Termux/proot would take on the order of minutes per frame. |
 | **Phone as camera, PC does the work** | **Feasible now.** Run an IP-camera app on the phone (e.g. "IP Webcam" on Android exposes `http://<phone-ip>:8080/video`), then `python live_demo.py --model_path ... --source http://<phone-ip>:8080/video`. Or record a video and run `demo.py --video_path`. |
-| **Phone as viewer** | **Feasible now.** The viewer is a web page: run with `--host 0.0.0.0` and open `http://<pc-ip>:8080` in the phone's browser (trusted network only — see `SECURITY_AUDIT.md`). For use away from home, use a VPN such as Tailscale instead of port-forwarding. |
+| **Phone as viewer** | **Feasible now.** The viewer is a web page and listens on the network by default: open `http://<pc-ip>:8080` in the phone's browser (trusted network only — see `SECURITY_AUDIT.md`). For use away from home, use a VPN such as Tailscale instead of port-forwarding. |
 
 ## Camera on a Wi-Fi microcontroller (ESP32-CAM, ESP32-S3 + OV2640/OV5640, etc.)
 

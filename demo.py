@@ -420,9 +420,9 @@ def main():
                              "actual frames.  Recommended when --keyframe_interval > 1.")
 
     # Visualization
-    parser.add_argument("--host", type=str, default="127.0.0.1",
-                        help="Viewer bind address. Default only allows this machine; use 0.0.0.0 to "
-                             "open the viewer from other devices on your network (e.g. a phone)")
+    parser.add_argument("--host", type=str, default="0.0.0.0",
+                        help="Viewer bind address. Default 0.0.0.0 lets other devices on your network "
+                             "(e.g. a phone) open the viewer; use 127.0.0.1 to restrict it to this machine")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--conf_threshold", type=float, default=1.5)
     parser.add_argument("--downsample_factor", type=int, default=10)
