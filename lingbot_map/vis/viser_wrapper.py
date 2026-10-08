@@ -24,6 +24,7 @@ from lingbot_map.vis.sky_segmentation import apply_sky_segmentation
 def viser_wrapper(
     pred_dict: dict,
     port: int = 8080,
+    host: str = "127.0.0.1",
     init_conf_threshold: float = 50.0,
     use_point_map: bool = False,
     background_mode: bool = False,
@@ -57,7 +58,7 @@ def viser_wrapper(
     """
     print(f"Starting viser server on port {port}")
 
-    server = viser.ViserServer(host="0.0.0.0", port=port)
+    server = viser.ViserServer(host=host, port=port)
     server.gui.configure_theme(titlebar_content=None, control_layout="collapsible")
 
     # Unpack prediction dict

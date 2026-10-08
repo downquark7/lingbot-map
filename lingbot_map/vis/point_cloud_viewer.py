@@ -80,6 +80,7 @@ class PointCloudViewer:
         edge_color_list=None,
         device: str = "cpu",
         port: int = 8080,
+        host: str = "127.0.0.1",
         show_camera: bool = True,
         vis_threshold: float = 1.0,
         size: int = 512,
@@ -98,7 +99,8 @@ class PointCloudViewer:
         self.model = model
         self.size = size
         self.state_args = state_args
-        self.server = viser.ViserServer(host="0.0.0.0", port=port)
+        # Localhost by default; pass host="0.0.0.0" to expose the viewer on the LAN.
+        self.server = viser.ViserServer(host=host, port=port)
         self.server.gui.configure_theme(titlebar_content=None, control_layout="collapsible")
         self.device = device
         self.conf_list = conf_list

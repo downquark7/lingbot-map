@@ -310,6 +310,14 @@ python demo.py --model_path /path/to/checkpoint.pt \
     --image_folder /path/to/images/ --use_sdpa
 ```
 
+SDPA is now picked automatically when FlashInfer is not installed, on CPU, and on AMD ROCm.
+
+#### AMD GPUs (ROCm), live cameras, security notes
+
+- **AMD (e.g. RX 9070 XT)**: install a ROCm build of PyTorch, skip FlashInfer, and run as usual — see [docs/AMD_ROCM.md](docs/AMD_ROCM.md). Check your setup with `python scripts/check_gpu.py`.
+- **Live camera / phone / ESP32-CAM**: `python live_demo.py --model_path ... --source http://<camera-ip>:81/stream` — see [docs/EDGE_DEVICES.md](docs/EDGE_DEVICES.md).
+- **Security**: checkpoints load with `torch.load(weights_only=True)` (or from `.safetensors`); `--trust_checkpoint` allows full unpickling for files you trust. The viewer binds to `127.0.0.1`; pass `--host 0.0.0.0` to open it from other devices on a trusted network. See [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
+
 #### Running on Limited GPU Memory
 
 If you run into out-of-memory issues, try one (or both) of the following:

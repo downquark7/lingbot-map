@@ -1093,6 +1093,8 @@ Examples:
     )
 
     parser.add_argument("--model_path", type=str, default=None, help="Path to model checkpoint")
+    parser.add_argument("--trust_checkpoint", action="store_true",
+                        help="Allow full (code-executing) pickle loading of a non-plain .pt checkpoint")
     parser.add_argument("--image_size", type=int, default=518)
     parser.add_argument("--patch_size", type=int, default=14)
     parser.add_argument(

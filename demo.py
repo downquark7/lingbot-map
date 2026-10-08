@@ -37,6 +37,11 @@ import time
 # the default allocator run.
 if "--compile" not in sys.argv:
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+# AMD ROCm only (ignored by CUDA builds): let SDPA use the AOTriton flash /
+# memory-efficient kernels on consumer RDNA GPUs (e.g. RX 9070 XT, gfx1201) that
+# PyTorch still marks experimental; otherwise it silently falls back to the
+# much slower, memory-hungry math kernel.
+os.environ.setdefault("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", "1")
 
 import cv2
 import numpy as np
@@ -47,6 +52,10 @@ from tqdm.auto import tqdm
 from lingbot_map.utils.pose_enc import pose_encoding_to_extri_intri
 from lingbot_map.utils.geometry import closed_form_inverse_se3_general
 from lingbot_map.utils.load_fn import load_and_preprocess_images
+from lingbot_map.utils.checkpoint import load_checkpoint_state_dict
+from lingbot_map.utils.device import (
+    describe_accelerator, is_rocm, pick_inference_dtype, resolve_use_sdpa,
+)
 
 
 # =============================================================================
@@ -151,8 +160,9 @@ def load_model(args, device):
 
     if args.model_path:
         print(f"Loading checkpoint: {args.model_path}")
-        ckpt = torch.load(args.model_path, map_location=device, weights_only=False)
-        state_dict = ckpt.get("model", ckpt)
+        # Load on CPU: the model is still on CPU here, and mapping straight to the
+        # GPU would briefly hold a second copy of the weights in VRAM.
+        state_dict = load_checkpoint_state_dict(args.model_path, "cpu", args.trust_checkpoint)
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         if missing:
             print(f"  Missing keys: {len(missing)}")
@@ -353,7 +363,15 @@ def main():
                              "(crop/resize then operates on the rotated aspect ratio)")
 
     # Model
-    parser.add_argument("--model_path", type=str, required=True)
+    parser.add_argument("--model_path", type=str, required=True,
+                        help="Checkpoint (.pt/.pth or .safetensors)")
+    parser.add_argument("--trust_checkpoint", action="store_true",
+                        help="Allow full pickle loading of a .pt checkpoint that is not a plain "
+                             "tensor state dict. Unpickling can execute code: only for trusted files.")
+    parser.add_argument("--device", type=str, default="auto", choices=["auto", "cuda", "cpu"],
+                        help="'cuda' also means AMD GPUs on a ROCm build of PyTorch")
+    parser.add_argument("--dtype", type=str, default="auto", choices=["auto", "bf16", "fp16", "fp32"],
+                        help="Inference dtype (auto: bf16 on Ampere+/ROCm, fp16 on older NVIDIA, fp32 on CPU)")
     parser.add_argument("--image_size", type=int, default=518)
     parser.add_argument("--patch_size", type=int, default=14)
 
@@ -402,6 +420,9 @@ def main():
                              "actual frames.  Recommended when --keyframe_interval > 1.")
 
     # Visualization
+    parser.add_argument("--host", type=str, default="127.0.0.1",
+                        help="Viewer bind address. Default only allows this machine; use 0.0.0.0 to "
+                             "open the viewer from other devices on your network (e.g. a phone)")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--conf_threshold", type=float, default=1.5)
     parser.add_argument("--downsample_factor", type=int, default=10)
@@ -424,7 +445,12 @@ def main():
     assert args.image_folder or args.video_path, \
         "Provide --image_folder or --video_path"
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if args.device == "auto":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device(args.device)
+    print(f"Device: {describe_accelerator() if device.type == 'cuda' else 'CPU'}")
+    args.use_sdpa = resolve_use_sdpa(args.use_sdpa or device.type != "cuda")
 
     # ── Load images & model ──────────────────────────────────────────────────
     t0 = time.time()
@@ -451,10 +477,7 @@ def main():
     print(f"Total load time: {time.time() - t0:.1f}s")
 
     # Pick inference dtype; autocast still runs for the ops that need fp32 (e.g. LayerNorm).
-    if torch.cuda.is_available():
-        dtype = torch.bfloat16 if torch.cuda.get_device_capability()[0] >= 8 else torch.float16
-    else:
-        dtype = torch.float32
+    dtype = pick_inference_dtype(device, args.dtype)
 
     # Cast the aggregator (DINOv2-style trunk) to the inference dtype to remove the
     # redundant fp32 master weight copy + autocast bf16 weight cache (~2-3 GB saved,
@@ -512,6 +535,9 @@ def main():
                 "skipping compile."
             )
         else:
+            if is_rocm():
+                print("Note: --compile on ROCm relies on HIP graphs and is less tested; "
+                      "drop --compile if warmup fails.")
             scale_for_warm = min(args.num_scale_frames, num_frames)
             if scale_for_warm >= num_frames:
                 scale_for_warm = max(1, num_frames - 1)
@@ -591,6 +617,7 @@ def main():
         from lingbot_map.vis import PointCloudViewer
         viewer = PointCloudViewer(
             pred_dict=prepare_for_visualization(predictions, images_cpu),
+            host=args.host,
             port=args.port,
             vis_threshold=args.conf_threshold,
             downsample_factor=args.downsample_factor,

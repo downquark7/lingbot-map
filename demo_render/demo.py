@@ -31,6 +31,7 @@ from tqdm.auto import tqdm
 from lingbot_map.utils.pose_enc import pose_encoding_to_extri_intri
 from lingbot_map.utils.geometry import closed_form_inverse_se3_general
 from lingbot_map.utils.load_fn import load_and_preprocess_images
+from lingbot_map.utils.checkpoint import load_checkpoint_state_dict
 
 
 # =============================================================================
@@ -114,8 +115,8 @@ def load_model(args, device):
 
     if args.model_path:
         print(f"Loading checkpoint: {args.model_path}")
-        ckpt = torch.load(args.model_path, map_location=device, weights_only=False)
-        state_dict = ckpt.get("model", ckpt)
+        state_dict = load_checkpoint_state_dict(
+            args.model_path, "cpu", getattr(args, "trust_checkpoint", False))
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         if missing:
             print(f"  Missing keys: {len(missing)}")
@@ -230,6 +231,8 @@ def main():
 
     # Model
     parser.add_argument("--model_path", type=str, required=True)
+    parser.add_argument("--trust_checkpoint", action="store_true",
+                        help="Allow full (code-executing) pickle loading of a non-plain .pt checkpoint")
     parser.add_argument("--image_size", type=int, default=518)
     parser.add_argument("--patch_size", type=int, default=14)
 
@@ -271,6 +274,8 @@ def main():
                         help="Overlap between windows. Default: num_scale_frames (overlap = scale frames)")
 
     # Visualization
+    parser.add_argument("--host", type=str, default="127.0.0.1",
+                        help="Viewer bind address (0.0.0.0 to allow other devices on the network)")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--conf_threshold", type=float, default=1.0)
     parser.add_argument("--downsample_factor", type=int, default=10)
@@ -318,6 +323,7 @@ def main():
                 from lingbot_map.vis import PointCloudViewer
                 viewer = PointCloudViewer(
                     pred_dict=prepare_for_visualization(predictions, images_cpu),
+                    host=args.host,
                     port=args.port,
                     init_conf_threshold=args.conf_threshold,
                     downsample_factor=args.downsample_factor,
@@ -401,6 +407,7 @@ def main():
         from lingbot_map.vis import PointCloudViewer
         viewer = PointCloudViewer(
             pred_dict=prepare_for_visualization(predictions, images_cpu),
+            host=args.host,
             port=args.port,
             init_conf_threshold=args.conf_threshold,
             downsample_factor=args.downsample_factor,
