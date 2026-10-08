@@ -95,8 +95,10 @@ class PointCloudViewer:
         sky_mask_visualization_dir: Optional[str] = None,
         depth_stride: int = 1,
         skyseg_model_path: str = "skyseg.onnx",
+        export_dir: str = "viewer_exports",
     ):
         self.model = model
+        self.export_dir = export_dir
         self.size = size
         self.state_args = state_args
         # Reachable from the LAN by default; pass host="127.0.0.1" for this machine only.
@@ -439,7 +441,8 @@ class PointCloudViewer:
                 initial_value="1920x1080",
             )
             self.screenshot_path = self.server.gui.add_text(
-                "Save Path", initial_value="screenshot.png"
+                "Save Path", initial_value="screenshot.png",
+                hint=f"File name inside {os.path.abspath(self.export_dir)}",
             )
             self.screenshot_status = self.server.gui.add_text(
                 "Status", initial_value="Ready"
@@ -452,7 +455,8 @@ class PointCloudViewer:
         # GLB export controls
         with self.server.gui.add_folder("Export GLB"):
             self.glb_output_path = self.server.gui.add_text(
-                "Output Path", initial_value="export.glb"
+                "Output Path", initial_value="export.glb",
+                hint=f"File name inside {os.path.abspath(self.export_dir)}",
             )
             self.glb_show_cam_checkbox = self.server.gui.add_checkbox(
                 "Include Cameras", initial_value=True,
@@ -520,7 +524,10 @@ class PointCloudViewer:
         # Video saving controls
         with self.server.gui.add_folder("Video Saving"):
             self.save_video_button = self.server.gui.add_button("Save Video", disabled=False)
-            self.video_output_path = self.server.gui.add_text("Output Path", initial_value="output_pointcloud.mp4")
+            self.video_output_path = self.server.gui.add_text(
+                "Output Path", initial_value="output_pointcloud.mp4",
+                hint=f"File name inside {os.path.abspath(self.export_dir)}",
+            )
             self.video_save_fps = self.server.gui.add_slider("Video FPS", min=10, max=60, step=1, initial_value=30)
             self.video_resolution = self.server.gui.add_dropdown(
                 "Resolution", options=["1920x1080", "1280x720", "3840x2160"], initial_value="1920x1080"
@@ -530,8 +537,13 @@ class PointCloudViewer:
 
         @self.save_video_button.on_click
         def _(_) -> None:
+            try:
+                output_path = self._export_path(self.video_output_path.value, "output_pointcloud.mp4")
+            except ValueError as e:
+                self.video_status.value = f"Error: {e}"
+                return
             self.save_video(
-                output_path=self.video_output_path.value,
+                output_path=output_path,
                 fps=self.video_save_fps.value,
                 resolution=self.video_resolution.value,
                 save_original_video=self.save_original_video_checkbox.value
@@ -635,6 +647,11 @@ class PointCloudViewer:
             import trimesh
         except ImportError:
             self.glb_status.value = "Error: pip install trimesh"
+            return
+        try:
+            output_path = self._export_path(self.glb_output_path.value, "export.glb")
+        except ValueError as e:
+            self.glb_status.value = f"Error: {e}"
             return
 
         self.glb_status.value = "Collecting points..."
@@ -793,7 +810,6 @@ class PointCloudViewer:
             extrinsics = np.expand_dims(w2c_0, 0)
             scene_3d = apply_scene_alignment(scene_3d, extrinsics)
 
-        output_path = self.glb_output_path.value
         scene_3d.export(output_path)
 
         n_pts = len(vertices)
@@ -1244,6 +1260,25 @@ class PointCloudViewer:
 
             time.sleep(1.0 / gui_framerate.value)
 
+    def _export_path(self, name: str, default_name: str) -> str:
+        """Map a file name typed into the viewer GUI to a path inside ``self.export_dir``.
+
+        Anyone who can open the viewer (on the network, by default) can type into
+        these fields, so they must not be able to write anywhere else on disk.
+        Raises ValueError for absolute paths or paths escaping the export folder.
+        """
+        root = os.path.realpath(self.export_dir)
+        name = (name or "").strip() or default_name
+        if os.path.isabs(name) or os.path.splitdrive(name)[0]:
+            raise ValueError(f"use a file name inside {root}, not an absolute path")
+        path = os.path.realpath(os.path.join(root, name))
+        if path == root or os.path.commonpath([root, path]) != root:
+            raise ValueError(f"'{name}' is outside the export folder {root}")
+        if not os.path.splitext(path)[1]:
+            path += os.path.splitext(default_name)[1]
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        return path
+
     def _take_screenshot(self, client: Optional[Any] = None):
         """Capture a screenshot from the current view and save to file.
 
@@ -1251,7 +1286,11 @@ class PointCloudViewer:
             client: The viser client that triggered the action. If None,
                     uses the first connected client.
         """
-        output_path = self.screenshot_path.value
+        try:
+            output_path = self._export_path(self.screenshot_path.value, "screenshot.png")
+        except ValueError as e:
+            self.screenshot_status.value = f"Error: {e}"
+            return
         res_str = self.screenshot_resolution.value
 
         # Resolve client

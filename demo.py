@@ -424,6 +424,9 @@ def main():
                         help="Viewer bind address. Default 0.0.0.0 lets other devices on your network "
                              "(e.g. a phone) open the viewer; use 127.0.0.1 to restrict it to this machine")
     parser.add_argument("--port", type=int, default=8080)
+    parser.add_argument("--export_dir", type=str, default="viewer_exports",
+                        help="Folder for screenshots / GLB / videos saved from the viewer; "
+                             "file names typed in the viewer cannot point outside it")
     parser.add_argument("--conf_threshold", type=float, default=1.5)
     parser.add_argument("--downsample_factor", type=int, default=10)
     parser.add_argument("--point_size", type=float, default=0.00001)
@@ -619,6 +622,7 @@ def main():
             pred_dict=prepare_for_visualization(predictions, images_cpu),
             host=args.host,
             port=args.port,
+            export_dir=args.export_dir,
             vis_threshold=args.conf_threshold,
             downsample_factor=args.downsample_factor,
             point_size=args.point_size,

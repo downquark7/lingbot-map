@@ -316,7 +316,7 @@ SDPA is now picked automatically when FlashInfer is not installed, on CPU, and o
 
 - **AMD (e.g. RX 9070 XT)**: install a ROCm build of PyTorch, skip FlashInfer, and run as usual — see [docs/AMD_ROCM.md](docs/AMD_ROCM.md). Check your setup with `python scripts/check_gpu.py`.
 - **Live camera / phone / ESP32-CAM**: `python live_demo.py --model_path ... --source http://<camera-ip>:81/stream` — see [docs/EDGE_DEVICES.md](docs/EDGE_DEVICES.md).
-- **Security**: checkpoints load with `torch.load(weights_only=True)` (or from `.safetensors`); `--trust_checkpoint` allows full unpickling for files you trust. The viewer binds to `0.0.0.0` (reachable from other devices on your network, e.g. a phone); pass `--host 127.0.0.1` to keep it on this machine, e.g. on untrusted networks. See [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
+- **Security**: checkpoints load with `torch.load(weights_only=True)` (or from `.safetensors`); `--trust_checkpoint` allows full unpickling for files you trust. The viewer binds to `0.0.0.0` (reachable from other devices on your network, e.g. a phone); pass `--host 127.0.0.1` to keep it on this machine, e.g. on untrusted networks. Screenshots / GLB / videos saved from the viewer always go into `--export_dir` (default `viewer_exports/`). See [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
 #### Running on Limited GPU Memory
 
